@@ -1,0 +1,15 @@
+# Conda environment for Pose Video API
+# Create:  conda env create -f environment.yaml
+# Update:  conda env update -f environment.yaml --prune
+# Activate: conda activate pose-video-api
+
+name: pose-video-api
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - -r requirements.txt

@@ -1,0 +1,9 @@
+# Pose Video API — requires Python >=3.10 (libreyolo is not published for 3.9)
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+opencv-python-headless>=4.8.0
+numpy>=1.24.0,<3.0.0
+torch>=2.4.0
+torchvision>=0.19.0
+libreyolo>=1.2.0
