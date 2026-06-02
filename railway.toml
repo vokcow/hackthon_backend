@@ -1,10 +1,8 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
-# Runs on Railway's build host before `docker build` (materializes LFS files in the workspace)
-# Runs on Railway's checkout before `docker build` (when the builder supports buildCommand).
-# Dockerfile also runs `git lfs pull` if pointers are still present.
-buildCommand = "git lfs install && git lfs pull"
+# Optional: materialize LFS on Railway checkout before docker build (ignored if git-lfs missing)
+buildCommand = "command -v git-lfs >/dev/null 2>&1 && git lfs install && git lfs pull || true"
 
 [deploy]
 healthcheckPath = "/health"

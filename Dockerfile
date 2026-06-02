@@ -2,11 +2,8 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    git-lfs \
     libgl1 \
     libglib2.0-0 \
-    && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -14,21 +11,24 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Git metadata + weights (pointers until lfs pull)
-COPY .gitattributes ./
-COPY .git ./.git
-COPY weights ./weights
+# Weights: use LFS file from build context if materialized (>1MB), else download full checkpoint
+COPY weights/LibreYOLONASn-pose.pt ./weights/LibreYOLONASn-pose.pt
 
-# Materialize LFS (Railway does not pull LFS before docker build by default)
-RUN git lfs pull \
-    && SIZE=$(wc -c < weights/LibreYOLONASn-pose.pt | tr -d ' ') \
-    && if [ "$SIZE" -lt 1000000 ]; then \
-         echo "FATAL: weights/LibreYOLONASn-pose.pt is ${SIZE} bytes — LFS pull failed."; \
-         echo "Ensure the repo is cloned with LFS or run scripts/railway_prepare.sh before build."; \
-         exit 1; \
-       fi \
-    && echo "Weights ready: ${SIZE} bytes" \
-    && rm -rf .git
+RUN set -eux; \
+    SIZE=$(wc -c < weights/LibreYOLONASn-pose.pt | tr -d ' '); \
+    if [ "$SIZE" -lt 1000000 ]; then \
+      echo "LFS pointer (${SIZE} bytes) — downloading full LibreYOLONASn-pose.pt..."; \
+      python -c "from libreyolo import LibreYOLO; LibreYOLO('LibreYOLONASn-pose.pt')"; \
+      if [ -f LibreYOLONASn-pose.pt ]; then \
+        mv LibreYOLONASn-pose.pt weights/LibreYOLONASn-pose.pt; \
+      fi; \
+    fi; \
+    FINAL=$(wc -c < weights/LibreYOLONASn-pose.pt | tr -d ' '); \
+    if [ "$FINAL" -lt 1000000 ]; then \
+      echo "FATAL: weights/LibreYOLONASn-pose.pt is ${FINAL} bytes after download."; \
+      exit 1; \
+    fi; \
+    echo "Weights ready: ${FINAL} bytes"
 
 COPY app ./app
 

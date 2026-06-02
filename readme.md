@@ -180,10 +180,10 @@ print(r.headers.get("X-Effective-Fps"))
 
 ## Despliegue en Railway
 
-Railway **no descarga Git LFS** al clonar. Este repo lo resuelve en dos capas:
+Railway **no descarga Git LFS** al clonar y **no envía `.git`** al contexto de Docker (no se puede hacer `git lfs pull` dentro del `Dockerfile`). Este repo lo resuelve así:
 
-1. **`railway.toml`** — `buildCommand` ejecuta `git lfs pull` antes del `docker build`.
-2. **`Dockerfile`** — vuelve a ejecutar `git lfs pull` dentro de la imagen y falla el build si el `.pt` sigue siendo un puntero (~130 bytes).
+1. **`railway.toml`** — intenta `git lfs pull` en el checkout antes del build (si `git-lfs` existe en el host).
+2. **`Dockerfile`** — si el `.pt` copiado es un puntero LFS (~130 bytes), **descarga el checkpoint completo** con LibreYOLO durante el build; si ya viene materializado desde LFS, lo reutiliza.
 
 Pasos:
 
@@ -206,7 +206,7 @@ docker build -t pose-video-api .
 docker run -p 8000:8000 -e PORT=8000 pose-video-api
 ```
 
-Si el `buildCommand` de Railway no ejecutara LFS (poco habitual), el `Dockerfile` sigue intentando `git lfs pull` mientras copie `.git`.
+El build de Docker **no** depende de `.git` en la imagen; el fallback de descarga evita el fallo `COPY .git` que rompía el deploy.
 
 **Nota:** En Railway no hay pantalla local; la visualización es el **vídeo de salida** descargado por HTTP, no una ventana en el servidor.
 
