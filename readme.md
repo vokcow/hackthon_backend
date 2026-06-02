@@ -180,10 +180,10 @@ print(r.headers.get("X-Effective-Fps"))
 
 ## Despliegue en Railway
 
-Railway **no descarga Git LFS** al clonar y **no envía `.git`** al contexto de Docker (no se puede hacer `git lfs pull` dentro del `Dockerfile`). Este repo lo resuelve así:
+Railway **no descarga Git LFS** al clonar. Este repo **siempre** materializa el modelo completo:
 
-1. **`railway.toml`** — intenta `git lfs pull` en el checkout antes del build (si `git-lfs` existe en el host).
-2. **`Dockerfile`** — si el `.pt` copiado es un puntero LFS (~130 bytes), **descarga el checkpoint completo** con LibreYOLO durante el build; si ya viene materializado desde LFS, lo reutiliza.
+1. **`railway.toml`** → `bash scripts/railway_lfs.sh`: `git lfs pull` + `ensure_weights.py`.
+2. **`Dockerfile`** → `python scripts/ensure_weights.py`: intenta `git lfs pull` si hay `.git`; **siempre** descarga el `.pt` completo desde el CDN de Deci (borra punteros o copias previas).
 
 Pasos:
 

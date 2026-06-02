@@ -1,8 +1,8 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
-# Optional: materialize LFS on Railway checkout before docker build (ignored if git-lfs missing)
-buildCommand = "command -v git-lfs >/dev/null 2>&1 && git lfs install && git lfs pull || true"
+# Always: git lfs pull on checkout, then ensure full weights before docker build
+buildCommand = "bash scripts/railway_lfs.sh"
 
 [deploy]
 healthcheckPath = "/health"

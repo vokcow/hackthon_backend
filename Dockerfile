@@ -11,24 +11,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Weights: use LFS file from build context if materialized (>1MB), else download full checkpoint
-COPY weights/LibreYOLONASn-pose.pt ./weights/LibreYOLONASn-pose.pt
-
-RUN set -eux; \
-    SIZE=$(wc -c < weights/LibreYOLONASn-pose.pt | tr -d ' '); \
-    if [ "$SIZE" -lt 1000000 ]; then \
-      echo "LFS pointer (${SIZE} bytes) — downloading full LibreYOLONASn-pose.pt..."; \
-      python -c "from libreyolo import LibreYOLO; LibreYOLO('LibreYOLONASn-pose.pt')"; \
-      if [ -f LibreYOLONASn-pose.pt ]; then \
-        mv LibreYOLONASn-pose.pt weights/LibreYOLONASn-pose.pt; \
-      fi; \
-    fi; \
-    FINAL=$(wc -c < weights/LibreYOLONASn-pose.pt | tr -d ' '); \
-    if [ "$FINAL" -lt 1000000 ]; then \
-      echo "FATAL: weights/LibreYOLONASn-pose.pt is ${FINAL} bytes after download."; \
-      exit 1; \
-    fi; \
-    echo "Weights ready: ${FINAL} bytes"
+# Always download full weights (git lfs pull inside script if .git exists; else CDN)
+COPY scripts/ensure_weights.py ./scripts/ensure_weights.py
+RUN python scripts/ensure_weights.py
 
 COPY app ./app
 
