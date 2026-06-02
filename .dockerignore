@@ -1,0 +1,16 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.gitignore
+.env
+.DS_Store
+/tmp/
+*.mp4
+runs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+frontend/
+
+# Keep .git and weights/ for optional in-Docker `git lfs pull` fallback

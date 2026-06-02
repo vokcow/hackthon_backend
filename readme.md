@@ -180,17 +180,33 @@ print(r.headers.get("X-Effective-Fps"))
 
 ## Despliegue en Railway
 
-1. Conecta el repo y usa el `Dockerfile` incluido.
-2. En GitHub: activa **Git LFS** para el repo; Railway debe clonar con LFS (build con `git lfs pull` o deploy desde GitHub con LFS habilitado).
-3. Asegura **≥ 2 GB RAM** en el plan.
-4. El contenedor usa el **modelo completo** en `/app/weights/LibreYOLONASn-pose.pt` (no descarga en runtime).
+Railway **no descarga Git LFS** al clonar. Este repo lo resuelve en dos capas:
+
+1. **`railway.toml`** — `buildCommand` ejecuta `git lfs pull` antes del `docker build`.
+2. **`Dockerfile`** — vuelve a ejecutar `git lfs pull` dentro de la imagen y falla el build si el `.pt` sigue siendo un puntero (~130 bytes).
+
+Pasos:
+
+1. Conecta el repo y usa el `Dockerfile` (configurado en `railway.toml`).
+2. Asegura **≥ 2 GB RAM** en el plan.
+3. El contenedor usa el **modelo completo** en `/app/weights/LibreYOLONASn-pose.pt`.
+
+Tras deploy, comprueba:
+
+```bash
+curl https://TU-APP.railway.app/health
+# model_exists: true, model_size_mb: ~38
+```
 
 ```bash
 # Build local (necesitas el .pt real, no el puntero LFS)
 git lfs pull
+bash scripts/railway_prepare.sh
 docker build -t pose-video-api .
 docker run -p 8000:8000 -e PORT=8000 pose-video-api
 ```
+
+Si el `buildCommand` de Railway no ejecutara LFS (poco habitual), el `Dockerfile` sigue intentando `git lfs pull` mientras copie `.git`.
 
 **Nota:** En Railway no hay pantalla local; la visualización es el **vídeo de salida** descargado por HTTP, no una ventana en el servidor.
 
@@ -234,3 +250,23 @@ Orden de magnitud (depende de resolución y CPU):
 | `libreyolo` sin pose NAS | `pip install -U "libreyolo>=1.2.0"` o instala desde GitHub: `pip install "git+https://github.com/LibreYOLO/libreyolo.git"` |
 | `weights/*.pt` pesa ~130 bytes | Solo tienes el **puntero LFS** → `git lfs pull` |
 | Docker build falla en COPY weights | Ejecuta `git lfs pull` antes de `docker build` |
+| `RPC failed; HTTP 400` al push | Subiste el `.pt` **sin** `git-lfs` instalado (~35 MB en Git). Instala LFS, migra y vuelve a push (ver abajo) |
+| `non-fast-forward` tras migrar LFS | Historial reescrito → `git push --force-with-lease origin main` (solo si nadie más depende del remoto) |
+| `git-lfs was not found on your path` | `export PATH="/opt/homebrew/bin:$PATH"` o `source scripts/lfs_path.sh` (ver [weights/README.md](weights/README.md)) |
+| `weights_only` / `Unsupported operand` en Railway | PyTorch 2.6 + pesos Deci; el repo fija `torch<2.6` y parchea carga en `app/torch_compat.py`. Redeploy. |
+| `weights/LibreYOLONASn-pose.pt` ~130 bytes en prod | LFS no materializado en build → activa LFS en Railway o `git lfs pull` antes del Docker build |
+
+### Arreglar push fallido (weights sin LFS)
+
+Si creaste `.gitattributes` pero **no** tenías `git-lfs` instalado, el `.pt` entró como blob normal y el push puede fallar.
+
+```bash
+brew install git-lfs
+git lfs install
+git lfs migrate import --include="weights/*.pt" --everything --yes
+git lfs pull
+git config http.postBuffer 524288000
+git push --force-with-lease origin main
+```
+
+O: `chmod +x scripts/fix_lfs_push.sh && ./scripts/fix_lfs_push.sh`
