@@ -16,7 +16,7 @@ Pensado para despliegues ligeros (p. ej. [Railway](https://railway.app/)): pocos
 
 - Python **3.10+** (recomendado 3.11)
 - ~2–4 GB RAM libres (PyTorch + modelo en CPU)
-- Primera ejecución: descarga automática de pesos YOLO-NAS (CDN Deci; revisa su licencia si es uso comercial)
+- Pesos **completos** en `weights/` (Git LFS); fallback a descarga LibreYOLO si no están presentes
 
 ## Instalación
 
@@ -42,6 +42,30 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+### Pesos del modelo (Git LFS)
+
+El checkpoint completo `weights/LibreYOLONASn-pose.pt` va en **Git LFS** (no como blob gigante en Git). Tras clonar:
+
+```bash
+brew install git-lfs    # una vez en macOS
+git lfs install
+git lfs pull            # si ya tenías el repo sin LFS
+ls -lh weights/LibreYOLONASn-pose.pt   # ~38M, no un puntero de ~130 bytes
+```
+
+La app usa automáticamente `weights/LibreYOLONASn-pose.pt` si existe. En Docker/Railway se copia el archivo **completo** del repo (el build debe hacer checkout con LFS).
+
+Primera vez que **subes** los weights al remoto:
+
+```bash
+git lfs install
+git add .gitattributes weights/LibreYOLONASn-pose.pt
+git commit -m "Track pose weights with Git LFS"
+git push
+```
+
+Más detalle: [weights/README.md](weights/README.md).
 
 ### Opción B — Conda (`environment.yaml`)
 
@@ -97,7 +121,7 @@ python -c "import sys; print(sys.executable)"
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `POSE_MODEL` | `LibreYOLONASn-pose.pt` | Checkpoint LibreYOLO pose |
+| `POSE_MODEL` | `weights/LibreYOLONASn-pose.pt` si existe | Ruta al `.pt` completo; si no, nombre para auto-descarga LibreYOLO |
 | `POSE_CONF` | `0.25` | Umbral de confianza de detección |
 | `POSE_IOU` | `0.45` | IoU para NMS |
 | `POSE_VID_STRIDE` | `3` | Inferir 1 de cada N frames |
@@ -156,13 +180,14 @@ print(r.headers.get("X-Effective-Fps"))
 
 ## Despliegue en Railway
 
-1. Conecta el repo y usa el `Dockerfile` incluido (o Nixpacks con `requirements.txt`).
-2. Asegura **≥ 2 GB RAM** en el plan.
-3. Railway define `PORT`; el contenedor arranca `uvicorn` en ese puerto.
-4. El primer request puede ser lento (carga de PyTorch y pesos); el startup hace un **warmup** opcional.
+1. Conecta el repo y usa el `Dockerfile` incluido.
+2. En GitHub: activa **Git LFS** para el repo; Railway debe clonar con LFS (build con `git lfs pull` o deploy desde GitHub con LFS habilitado).
+3. Asegura **≥ 2 GB RAM** en el plan.
+4. El contenedor usa el **modelo completo** en `/app/weights/LibreYOLONASn-pose.pt` (no descarga en runtime).
 
 ```bash
-# Build local
+# Build local (necesitas el .pt real, no el puntero LFS)
+git lfs pull
 docker build -t pose-video-api .
 docker run -p 8000:8000 -e PORT=8000 pose-video-api
 ```
@@ -180,6 +205,8 @@ app/
 requirements.txt
 environment.yaml   # Entorno Conda
 Dockerfile
+weights/           # LibreYOLONASn-pose.pt (Git LFS)
+.gitattributes     # reglas LFS
 ```
 
 ## Rendimiento esperado (CPU)
@@ -205,3 +232,5 @@ Orden de magnitud (depende de resolución y CPU):
 | Muy lento | Aumenta `vid_stride`; reduce resolución del vídeo de entrada |
 | Sin persona dibujada | Baja `POSE_CONF`; asegura que una persona sea visible y dominante |
 | `libreyolo` sin pose NAS | `pip install -U "libreyolo>=1.2.0"` o instala desde GitHub: `pip install "git+https://github.com/LibreYOLO/libreyolo.git"` |
+| `weights/*.pt` pesa ~130 bytes | Solo tienes el **puntero LFS** → `git lfs pull` |
+| Docker build falla en COPY weights | Ejecuta `git lfs pull` antes de `docker build` |

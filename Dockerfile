@@ -9,15 +9,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && python -c "from libreyolo import LibreYOLO; LibreYOLO('LibreYOLONASn-pose.pt')"
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+# Full weights from repo (Git LFS must be pulled before docker build)
+COPY weights/LibreYOLONASn-pose.pt ./weights/LibreYOLONASn-pose.pt
 
-ENV POSE_MODEL=LibreYOLONASn-pose.pt \
+ENV POSE_MODEL=/app/weights/LibreYOLONASn-pose.pt \
     OUTPUT_DIR=/tmp/pose_outputs \
     PORT=8000
 
 EXPOSE 8000
 
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

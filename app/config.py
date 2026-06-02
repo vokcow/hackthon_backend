@@ -4,11 +4,29 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+BUNDLED_WEIGHT = PROJECT_ROOT / "weights" / "LibreYOLONASn-pose.pt"
+REMOTE_WEIGHT_NAME = "LibreYOLONASn-pose.pt"
+
+
+def resolve_model_path() -> str:
+    """
+    Prefer explicit POSE_MODEL, then bundled weights/ (Git LFS in repo),
+    else LibreYOLO auto-download by checkpoint name.
+    """
+    explicit = os.getenv("POSE_MODEL")
+    if explicit:
+        return explicit
+    if BUNDLED_WEIGHT.is_file():
+        return str(BUNDLED_WEIGHT)
+    return REMOTE_WEIGHT_NAME
 
 
 @dataclass(frozen=True)
 class Settings:
-    model_name: str = os.getenv("POSE_MODEL", "LibreYOLONASn-pose.pt")
+    model_name: str = resolve_model_path()
     device: str = "cpu"
     conf_threshold: float = float(os.getenv("POSE_CONF", "0.25"))
     iou_threshold: float = float(os.getenv("POSE_IOU", "0.45"))

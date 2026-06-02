@@ -45,9 +45,13 @@ def on_startup() -> None:
 
 @app.get("/health")
 def health() -> dict:
+    model_path = Path(settings.model_name)
+    model_exists = model_path.is_file()
     return {
         "status": "ok",
         "model": settings.model_name,
+        "model_exists": model_exists,
+        "model_size_mb": round(model_path.stat().st_size / 1e6, 1) if model_exists else None,
         "device": settings.device,
         "vid_stride_default": settings.vid_stride,
     }
