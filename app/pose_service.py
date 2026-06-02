@@ -13,6 +13,9 @@ import numpy as np
 
 from app.config import settings
 from app.drawing import draw_single_person
+from app.torch_compat import patch_libreyolo_weight_loading
+
+patch_libreyolo_weight_loading()
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +42,7 @@ def get_model():
     """Load LibreYOLO pose model once (singleton)."""
     global _model
     if _model is None:
-        from libreyolo import LibreYOLO
+        from libreyolo import LibreYOLO  # noqa: E402 — after torch_compat patch
 
         logger.info("Loading pose model %s on %s", settings.model_name, settings.device)
         t0 = time.perf_counter()

@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.config import settings
@@ -29,6 +30,21 @@ app = FastAPI(
         "for the single highest-confidence person."
     ),
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=[
+        "X-Frames-Total",
+        "X-Frames-Inferred",
+        "X-Elapsed-Seconds",
+        "X-Effective-Fps",
+        "X-Process-Stats",
+    ],
 )
 
 
@@ -154,6 +170,7 @@ def root() -> JSONResponse:
     return JSONResponse(
         {
             "service": "pose-video-api",
+            "frontend_dev": "http://localhost:3000 (cd frontend && npm run dev)",
             "docs": "/docs",
             "health": "/health",
             "process_video": "POST /api/v1/pose/video",
